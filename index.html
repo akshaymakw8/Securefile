@@ -1,461 +1,333 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S3 Bulk File Uploader</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure File Upload - %%COMPANY_NAME%%</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .fade-in {
+      animation: fadeIn 0.5s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="absolute top-4 left-8">
-        <img src="https://aigurupublic.s3.us-east-1.amazonaws.com/snapline-logo.png" alt="Company Logo" class="h-16">
+<body class="bg-slate-100 flex flex-col items-center justify-center min-h-screen p-4">
+
+  <!-- Header with Logo -->
+  <header class="absolute top-0 left-0 w-full p-6 pl-10">
+    <img src="%%LOGO_URL%%" alt="%%COMPANY_NAME%% Logo" class="h-12 sm:h-16">
+  </header>
+
+  <main class="bg-white rounded-2xl shadow-2xl p-6 sm:p-10 w-full max-w-3xl m-4 mt-24 sm:mt-4">
+    <div class="text-center mb-8">
+      <h1 class="text-3xl sm:text-4xl font-bold text-slate-800">Secure File Upload</h1>
+      <p class="text-slate-500 mt-2">Upload your documents for %%COMPANY_NAME%%</p>
     </div>
-
-    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">S3 Bulk File Uploader</h1>
-
-        <div class="mb-6">
-            <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-            <input type="password" id="password" placeholder="Enter your password" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        </div>
-
-        <div class="mb-6">
-            <label class="block text-sm font-medium text-gray-700">Upload Files</label>
-
-            <!-- File types toggle -->
-            <div class="mb-3">
-                <button type="button" id="fileTypesToggle" class="flex w-full justify-between items-center p-2 text-sm text-left font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 transition-colors">
-                    <div class="flex items-center">
-                        <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                        </svg>
-                        <span>Click to view allowed file types</span>
-                    </div>
-                    <svg id="fileTypesArrow" class="h-5 w-5 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                    </svg>
-                </button>
-                <div id="fileTypesContent" class="hidden mt-2 p-3 bg-blue-50 border-l-4 border-blue-400 rounded">
-                    <p class="text-sm text-blue-700"><strong>Allowed file types:</strong></p>
-                    <ul class="mt-2 text-sm text-blue-700 list-disc ml-5">
-                        <li>Documents: PDF, DOC, DOCX, TXT</li>
-                        <li>Spreadsheets: XLS, XLSX, CSV</li>
-                        <li>Email: EML, MSG</li>
-                        <li>Images: JPG, PNG, GIF</li>
-                    </ul>
-                    <p class="text-sm text-yellow-700 mt-2"><strong>Not Allowed:</strong> ZIP files</p>
-                </div>
-            </div>
-
-            <div id="drop-area" class="mt-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-md p-6 cursor-pointer hover:border-blue-500 transition-colors">
-                <span id="dropText">Drag & drop files here or click to upload</span>
-                <input type="file" id="fileInput" multiple class="hidden" />
-            </div>
-        </div>
-
-        <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700">Overall Progress</label>
-            <div class="w-full bg-gray-200 rounded-full h-2.5">
-                <div id="overallProgress" class="bg-blue-500 h-2.5 rounded-full" style="width: 0%;"></div>
-            </div>
-            <p id="overallProgressText" class="text-sm text-gray-600 mt-1">0%</p>
-        </div>
-
-        <div id="fileList" class="mb-6"></div>
-
-        <div class="flex space-x-2">
-            <button id="uploadButton" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" disabled>Upload Files</button>
-            <button id="clearButton" class="flex-1 bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2" disabled>Clear All</button>
-        </div>
-
-        <div id="loading" class="hidden mt-4 text-center">
-            <svg class="animate-spin h-5 w-5 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-        </div>
-
-        <p id="status" class="mt-4 text-center text-sm"></p>
-        <div id="uploadedFilesContainer" class="mt-6 hidden">
-            <h2 class="text-lg font-semibold text-gray-800">Uploaded Files</h2>
-            <ul id="uploadedFilesList" class="mt-2 list-disc list-inside text-gray-700"></ul>
-        </div>
+    
+    <!-- Password Authentication Section -->
+    <div class="mb-6">
+      <label for="password" class="block mb-2 font-medium text-slate-700">Password</label>
+      <input type="password" id="password" placeholder="Enter your password" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition duration-300">
     </div>
+    
+    <!-- File Upload Guidance -->
+    <div class="space-y-4 mb-6">
+      <div class="bg-blue-50 border border-blue-200 rounded-lg">
+        <div class="collapsible-header flex justify-between items-center p-4 cursor-pointer" id="file-types-toggle">
+          <div class="flex items-center font-medium text-blue-800">
+             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span>Allowed File Types</span>
+          </div>
+          <svg id="file-types-arrow" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600 transition-transform duration-300"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+        <div class="collapsible-content hidden px-4 pb-4" id="file-types-content">
+          <ul class="list-disc list-inside text-slate-600 grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <li>PDF, DOC, DOCX</li>
+            <li>XLS, XLSX, CSV</li>
+            <li>EML, MSG, TXT</li>
+            <li>JPG, PNG, GIF</li>
+          </ul>
+        </div>
+      </div>
+       <div class="warning flex items-start bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3 mt-0.5 flex-shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          <strong>Note:</strong> ZIP files are not allowed for security reasons.
+      </div>
+    </div>
+    
+    <!-- Upload Area -->
+    <div id="drop-area" class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer transition-all duration-300 hover:border-blue-500 hover:bg-blue-50">
+      <div class="flex flex-col items-center text-slate-500">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-4 text-slate-400"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"></path><line x1="16" y1="5" x2="22" y2="5"></line><line x1="19" y1="2" x2="19" y2="8"></line><path d="M10 14l-2 2 6 6"></path></svg>
+        <p class="font-medium">Drag & drop files here</p>
+        <p class="text-sm">or <span class="text-blue-600 font-semibold">click to browse</span></p>
+      </div>
+      <input type="file" id="fileInput" multiple class="hidden">
+    </div>
+    
+    <!-- Upload Controls -->
+    <div class="flex flex-col sm:flex-row gap-4 mt-6">
+      <button id="uploadButton" disabled class="w-full sm:w-auto flex-grow bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-300">Upload Files</button>
+      <button id="clearButton" disabled class="w-full sm:w-auto bg-red-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-red-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-300">Clear All</button>
+    </div>
+    
+    <!-- Status Message -->
+    <div id="status-message" class="mt-6 text-center"></div>
+    
+    <!-- File List -->
+    <div id="fileList" class="mt-8 space-y-3"></div>
+  </main>
 
-    <script>
-        // Configuration - Replace with your API endpoint
-        const API_ENDPOINT = '';
+  <script>
+    // Configuration - will be replaced during build
+    const API_ENDPOINT = '%%API_URL%%';
+    const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.csv', '.eml', '.msg', '.jpg', '.jpeg', '.png', '.gif'];
+    
+    // DOM Elements
+    const dropArea = document.getElementById('drop-area');
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadButton');
+    const clearBtn = document.getElementById('clearButton');
+    const fileList = document.getElementById('fileList');
+    const statusMessage = document.getElementById('status-message');
+    const fileTypesToggle = document.getElementById('file-types-toggle');
+    const fileTypesContent = document.getElementById('file-types-content');
+    const fileTypesArrow = document.getElementById('file-types-arrow');
 
-        // DOM Elements
-        const dropArea = document.getElementById('drop-area');
-        const fileInput = document.getElementById('fileInput');
-        const dropText = document.getElementById('dropText');
-        const uploadBtn = document.getElementById('uploadButton');
-        const clearBtn = document.getElementById('clearButton');
-        const fileList = document.getElementById('fileList');
-        const overallProgress = document.getElementById('overallProgress');
-        const overallProgressText = document.getElementById('overallProgressText');
-        const status = document.getElementById('status');
-        const loading = document.getElementById('loading');
+    // File storage
+    let files = [];
+    
+    // UI Icons
+    const ICONS = {
+      uploading: `<div class="spinner border-2 border-slate-300 border-t-blue-500 rounded-full w-5 h-5 animate-spin"></div>`,
+      complete: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`,
+      error: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-red-500"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`,
+      pending: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`
+    };
+    
+    // Event Listeners
+    fileTypesToggle.addEventListener('click', () => {
+      fileTypesContent.classList.toggle('hidden');
+      fileTypesArrow.style.transform = fileTypesContent.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+    });
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => dropArea.addEventListener(eventName, preventDefaults, false));
+    ['dragenter', 'dragover'].forEach(eventName => dropArea.addEventListener(eventName, () => dropArea.classList.add('bg-blue-50', 'border-blue-500'), false));
+    ['dragleave', 'drop'].forEach(eventName => dropArea.addEventListener(eventName, () => dropArea.classList.remove('bg-blue-50', 'border-blue-500'), false));
+
+    dropArea.addEventListener('drop', e => addFiles([...e.dataTransfer.files]), false);
+    dropArea.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', function() {
+      addFiles([...this.files]);
+      this.value = null;
+    });
+
+    uploadBtn.addEventListener('click', uploadFiles);
+    clearBtn.addEventListener('click', clearFiles);
+
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    function checkFileType(fileName) {
+        const lowerFileName = fileName.toLowerCase();
+        if (lowerFileName.endsWith('.zip')) {
+            return { allowed: false, message: 'ZIP files are not allowed!' };
+        }
+        if (allowedExtensions.some(ext => lowerFileName.endsWith(ext))) {
+            return { allowed: true };
+        }
+        return { allowed: false, message: 'File type not allowed!' };
+    }
+
+    function addFiles(newFiles) {
+        const invalidFiles = newFiles.map(file => ({ file, check: checkFileType(file.name) })).filter(item => !item.check.allowed);
         
-        const fileTypesToggle = document.getElementById('fileTypesToggle');
-        const fileTypesContent = document.getElementById('fileTypesContent');
-        const fileTypesArrow = document.getElementById('fileTypesArrow');
-
-        // File storage
-        let files = [];
-
-        // File types toggle
-        fileTypesToggle.addEventListener('click', () => {
-            fileTypesContent.classList.toggle('hidden');
-            fileTypesArrow.classList.toggle('rotate-180');
-        });
-
-        // Event listeners for drag and drop
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, preventDefaults, false);
-        });
-
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
+        if (invalidFiles.length > 0) {
+            const errorMessage = `<strong>Some files were not added:</strong><ul class="list-disc list-inside text-left mt-2">${invalidFiles.map(f => `<li>${f.file.name}: ${f.check.message}</li>`).join('')}</ul>`;
+            showStatusMessage(errorMessage, 'error');
+        } else {
+             statusMessage.innerHTML = '';
         }
 
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropArea.addEventListener(eventName, highlight, false);
+        const validFiles = newFiles.filter(file => checkFileType(file.name).allowed);
+        if (validFiles.length === 0) return;
+        
+        validFiles.forEach(file => {
+            const fileId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            files.push({ id: fileId, file: file, status: 'pending' });
+
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item flex items-center p-3 bg-slate-50 rounded-lg fade-in';
+            fileItem.dataset.id = fileId;
+            fileItem.innerHTML = `
+              <div class="flex-grow flex items-center min-w-0">
+                <div class="status-icon w-8 h-8 flex-shrink-0 flex items-center justify-center mr-3">${ICONS.pending}</div>
+                <div class="min-w-0">
+                  <p class="font-medium text-slate-800 truncate">${file.name}</p>
+                  <p class="text-sm text-slate-500">${formatFileSize(file.size)}</p>
+                </div>
+              </div>
+              <button class="remove-btn ml-4 text-slate-400 hover:text-red-600 transition-colors duration-200 flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            `;
+            fileItem.querySelector('.remove-btn').addEventListener('click', () => removeFile(fileId));
+            fileList.appendChild(fileItem);
         });
 
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, unhighlight, false);
-        });
+        updateButtons();
+    }
 
-        function highlight() {
-            dropArea.classList.add('border-blue-500');
+    function removeFile(fileId) {
+        files = files.filter(f => f.id !== fileId);
+        const fileElement = document.querySelector(`.file-item[data-id="${fileId}"]`);
+        if (fileElement) fileElement.remove();
+        updateButtons();
+    }
+
+    function clearFiles() {
+        files = [];
+        fileList.innerHTML = '';
+        showStatusMessage('', 'clear');
+        updateButtons();
+    }
+
+    function updateButtons() {
+        const hasFiles = files.length > 0;
+        uploadBtn.disabled = !hasFiles;
+        clearBtn.disabled = !hasFiles;
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    function showStatusMessage(message, type) {
+        statusMessage.innerHTML = message;
+        if (type === 'success') {
+            statusMessage.className = 'mt-6 text-center p-4 rounded-lg bg-green-50 text-green-700 border border-green-200';
+        } else if (type === 'error') {
+            statusMessage.className = 'mt-6 text-center p-4 rounded-lg bg-red-50 text-red-700 border border-red-200';
+        } else if (type === 'info') {
+            statusMessage.className = 'mt-6 text-center p-4 rounded-lg bg-blue-50 text-blue-700 border border-blue-200';
+        } else {
+             statusMessage.className = 'mt-6 text-center';
+        }
+    }
+
+    async function uploadFiles() {
+        if (files.length === 0) return;
+        const password = document.getElementById('password').value;
+        if (!password) {
+            showStatusMessage('Please enter a password before uploading.', 'error');
+            return;
         }
 
-        function unhighlight() {
-            dropArea.classList.remove('border-blue-500');
-        }
+        uploadBtn.disabled = true;
+        clearBtn.disabled = true;
+        showStatusMessage('Preparing files for upload...', 'info');
 
-        // Handle file drop
-        dropArea.addEventListener('drop', handleDrop, false);
+        try {
+            const fileInfoArray = files.map(f => ({
+                fileName: f.file.name,
+                contentType: f.file.type || 'application/octet-stream'
+            }));
 
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const newFiles = [...dt.files];
-            addFiles(newFiles);
-        }
-
-        // Handle file select
-        dropArea.addEventListener('click', () => {
-            fileInput.click();
-        });
-
-        fileInput.addEventListener('change', function() {
-            addFiles([...this.files]);
-            this.value = null; // Reset input to allow selecting the same files again
-        });
-
-        // Handle upload button
-        uploadBtn.addEventListener('click', uploadFiles);
-
-        // Handle clear button
-        clearBtn.addEventListener('click', clearFiles);
-
-        // Add files to the list
-        function addFiles(newFiles) {
-            if (newFiles.length === 0) return;
-            
-            newFiles.forEach(file => {
-                // Check file type
-                if (!checkFileType(file.name).allowed) {
-                    status.textContent = checkFileType(file.name).message;
-                    status.classList.add('text-red-500');
-                    return;
-                }
-                
-                // Create a unique ID for this file
-                const fileId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-
-                files.push({
-                    id: fileId,
-                    file: file,
-                    status: 'pending'
-                });
-
-                // Add to UI
-                const fileItem = document.createElement('div');
-                fileItem.className = 'file-item bg-gray-50 rounded p-3 mb-2';
-                fileItem.dataset.id = fileId;
-
-                fileItem.innerHTML = `
-                    <div class="flex justify-between items-center mb-2">
-                        <div class="text-sm font-medium text-gray-700">${file.name}</div>
-                        <div class="text-xs text-gray-500">${formatFileSize(file.size)}</div>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div class="progress bg-green-500 h-2 rounded-full" style="width: 0%"></div>
-                    </div>
-                    <div class="flex justify-between items-center mt-1">
-                        <div class="status text-xs text-gray-500">Pending</div>
-                        <button class="remove-btn text-xs text-red-500 hover:text-red-700">Remove</button>
-                    </div>
-                `;
-
-                // Add remove button functionality
-                const removeBtn = fileItem.querySelector('.remove-btn');
-                removeBtn.addEventListener('click', () => {
-                    removeFile(fileId);
-                });
-
-                fileList.appendChild(fileItem);
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password, files: fileInfoArray })
             });
 
-            // Update drop text
-            updateDropText();
-            
-            // Update buttons
-            updateButtons();
-        }
+            if (!response.ok) {
+                throw new Error(response.status === 401 ? 'Invalid password' : 'Failed to get upload URLs');
+            }
 
-        // Update drop text based on selected files
-        function updateDropText() {
-            if (files.length === 0) {
-                dropText.textContent = 'Drag & drop files here or click to upload';
+            const { presignedUrls } = await response.json();
+            showStatusMessage(`Uploading ${files.length} file(s)...`, 'info');
+
+            const uploadPromises = files.map((fileObj, index) => {
+                const urlData = presignedUrls[index];
+                if (!urlData) return Promise.reject(new Error(`No presigned URL for ${fileObj.file.name}`));
+                return uploadSingleFile(fileObj.file, urlData.uploadURL, fileObj.id);
+            });
+            
+            await Promise.allSettled(uploadPromises);
+
+            const failedCount = files.filter(f => f.status === 'error').length;
+            if (failedCount > 0) {
+                 showStatusMessage(`Upload complete. ${failedCount} file(s) failed to upload.`, 'error');
             } else {
-                dropText.textContent = `${files.length} file(s) selected`;
-            }
-        }
-
-        // Check if file type is allowed
-        function checkFileType(fileName) {
-            const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.csv', '.eml', '.msg', '.jpg', '.jpeg', '.png', '.gif'];
-            const lower = fileName.toLowerCase();
-            if (lower.endsWith('.zip')) return { allowed: false, message: 'ZIP files are not allowed!' };
-            for (const ext of allowedExtensions) {
-                if (lower.endsWith(ext)) return { allowed: true };
-            }
-            return { allowed: false, message: 'Unsupported file type!' };
-        }
-
-        // Remove a file from the list
-        function removeFile(fileId) {
-            files = files.filter(f => f.id !== fileId);
-            const fileElement = document.querySelector(`.file-item[data-id="${fileId}"]`);
-            if (fileElement) {
-                fileElement.remove();
+                 showStatusMessage('All files uploaded successfully!', 'success');
             }
 
-            updateDropText();
+        } catch (error) {
+            console.error('Upload error:', error);
+            showStatusMessage(`An error occurred: ${error.message}`, 'error');
+        } finally {
             updateButtons();
         }
+    }
 
-        // Clear all files
-        function clearFiles() {
-            files = [];
-            fileList.innerHTML = '';
-            updateDropText();
-            updateButtons();
+    function uploadSingleFile(file, presignedUrl, fileId) {
+        return new Promise((resolve, reject) => {
+            updateFileStatus(fileId, 'uploading');
+            const xhr = new XMLHttpRequest();
             
-            // Reset overall progress
-            overallProgress.style.width = '0%';
-            overallProgressText.textContent = '0%';
-        }
-
-        // Update button states
-        function updateButtons() {
-            uploadBtn.disabled = files.length === 0;
-            clearBtn.disabled = files.length === 0;
-        }
-
-        // Format file size for display
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        // Update overall progress
-        function updateOverallProgress(completed, total) {
-            const percent = Math.round((completed / total) * 100);
-            overallProgress.style.width = `${percent}%`;
-            overallProgressText.textContent = `${percent}%`;
-        }
-
-        // Upload files to S3
-        async function uploadFiles() {
-            if (files.length === 0) return;
-            
-            // Reset status
-            status.textContent = '';
-            status.classList.remove('text-red-500', 'text-green-500');
-
-            // Disable buttons during upload
-            uploadBtn.disabled = true;
-            clearBtn.disabled = true;
-            loading.classList.remove('hidden');
-
-            try {
-                // Prepare file information for backend
-                const fileInfoArray = files.map(f => ({
-                    fileName: f.file.name,
-                    contentType: f.file.type || 'application/octet-stream'
-                }));
-
-                // Request presigned URLs from server
-                const response = await fetch(API_ENDPOINT, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        password: document.getElementById('password').value,
-                        files: fileInfoArray 
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to get presigned URLs');
-                }
-
-                const data = await response.json();
-                const { presignedUrls } = data;
-
-                let uploadedCount = 0;
-                const totalFiles = files.length;
-
-                // Upload files in parallel
-                const uploadPromises = files.map((fileObj, index) => {
-                    const urlData = presignedUrls[index];
-                    if (!urlData) return Promise.reject(new Error('No presigned URL for file'));
-
-                    return uploadFileWithProgress(
-                        fileObj.file,
-                        urlData.uploadURL,
-                        fileObj.id
-                    ).then(() => {
-                        uploadedCount++;
-                        updateOverallProgress(uploadedCount, totalFiles);
-                    });
-                });
-
-                await Promise.allSettled(uploadPromises);
-                
-                // Check if all files were uploaded successfully
-                if (uploadedCount === totalFiles) {
-                    status.textContent = 'All files uploaded successfully!';
-                    status.classList.add('text-green-500');
+            xhr.addEventListener('load', () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    updateFileStatus(fileId, 'complete');
+                    resolve();
                 } else {
-                    status.textContent = `Uploaded ${uploadedCount} of ${totalFiles} files`;
-                    status.classList.add('text-yellow-500');
+                    updateFileStatus(fileId, 'error');
+                    reject(new Error(`Upload failed with status ${xhr.status}`));
                 }
-
-            } catch (error) {
-                console.error('Upload error:', error);
-                status.textContent = `Error: ${error.message}`;
-                status.classList.add('text-red-500');
-            } finally {
-                // Hide loading indicator
-                loading.classList.add('hidden');
-                
-                // Re-enable buttons
-                updateButtons();
-            }
-        }
-
-        // Upload a single file with progress tracking
-        function uploadFileWithProgress(file, presignedUrl, fileId) {
-            return new Promise((resolve, reject) => {
-                // Update UI to show upload started
-                updateFileStatus(fileId, 'uploading', 0);
-
-                // Create XHR for upload with progress tracking
-                const xhr = new XMLHttpRequest();
-
-                // Setup progress tracking
-                xhr.upload.addEventListener('progress', (event) => {
-                    if (event.lengthComputable) {
-                        const percentComplete = (event.loaded / event.total) * 100;
-                        updateFileStatus(fileId, 'uploading', percentComplete);
-                    }
-                });
-
-                // Setup completion handler
-                xhr.addEventListener('load', () => {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        updateFileStatus(fileId, 'complete', 100);
-                        resolve();
-                    } else {
-                        updateFileStatus(fileId, 'error', 0);
-                        reject(new Error(`Upload failed with status ${xhr.status}`));
-                    }
-                });
-
-                // Setup error handler
-                xhr.addEventListener('error', () => {
-                    updateFileStatus(fileId, 'error', 0);
-                    reject(new Error('Network error occurred during upload'));
-                });
-
-                // Setup abort handler
-                xhr.addEventListener('abort', () => {
-                    updateFileStatus(fileId, 'error', 0);
-                    reject(new Error('Upload aborted'));
-                });
-
-                // Start upload
-                xhr.open('PUT', presignedUrl, true);
-                xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-                xhr.send(file);
             });
+
+            xhr.addEventListener('error', () => {
+                updateFileStatus(fileId, 'error');
+                reject(new Error('Network error during upload'));
+            });
+            
+            xhr.addEventListener('abort', () => {
+                updateFileStatus(fileId, 'error');
+                reject(new Error('Upload aborted'));
+            });
+
+            xhr.open('PUT', presignedUrl, true);
+            xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+            xhr.send(file);
+        });
+    }
+
+    function updateFileStatus(fileId, status) {
+        const fileElement = document.querySelector(`.file-item[data-id="${fileId}"]`);
+        if (!fileElement) return;
+        
+        const fileObj = files.find(f => f.id === fileId);
+        if (fileObj) fileObj.status = status;
+        
+        const statusIcon = fileElement.querySelector('.status-icon');
+        if (statusIcon) {
+            statusIcon.innerHTML = ICONS[status] || ICONS.pending;
         }
-
-        // Update file status in UI
-        function updateFileStatus(fileId, status, progress) {
-            const fileElement = document.querySelector(`.file-item[data-id="${fileId}"]`);
-            if (!fileElement) return;
-
-            const progressBar = fileElement.querySelector('.progress');
-            const statusElement = fileElement.querySelector('.status');
-
-            // Update the file object status
-            const fileObj = files.find(f => f.id === fileId);
-            if (fileObj) {
-                fileObj.status = status;
-            }
-
-            // Update progress bar
-            if (progressBar) {
-                progressBar.style.width = `${progress}%`;
-            }
-
-            // Update status text
-            if (statusElement) {
-                statusElement.className = 'status text-xs'; // Reset classes
-
-                switch (status) {
-                    case 'uploading':
-                        statusElement.textContent = `${Math.round(progress)}%`;
-                        statusElement.classList.add('text-blue-500');
-                        break;
-                    case 'complete':
-                        statusElement.textContent = 'Complete';
-                        statusElement.classList.add('text-green-500');
-                        break;
-                    case 'error':
-                        statusElement.textContent = 'Failed';
-                        statusElement.classList.add('text-red-500');
-                        break;
-                    default:
-                        statusElement.textContent = 'Pending';
-                        statusElement.classList.add('text-gray-500');
-                }
-            }
-        }
-    </script>
+    }
+  </script>
 </body>
 </html>
