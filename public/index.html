@@ -305,7 +305,7 @@
 </head>
 <body>
   <div class="header">
-    <img src="https://aigurupublic.s3.us-east-1.amazonaws.com/snapline-logo.png" alt="%%COMPANY_NAME%% Logo" class="logo">
+    <img src="%%LOGO_URL%%" alt="%%COMPANY_NAME%% Logo" class="logo">
   </div>
 
   <div class="container">
@@ -386,9 +386,7 @@
   </div>
 
   <script>
-    // This will be replaced by Amplify build process with actual API URL
-    // Format: https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/generate-bulk-upload-urls
-    const API_ENDPOINT = 'https://rmi61s4pf1.execute-api.ap-south-1.amazonaws.com/upload';
+    const API_ENDPOINT = '%%API_URL%%';
     
     const allowedExtensions = [
       '.pdf', '.doc', '.docx', '.txt',
@@ -530,7 +528,7 @@
         fileItem.dataset.id = fileId;
         
         fileItem.innerHTML = `
-          <div class="file-name">${file.name} (${formatFileSize(file.size)})${isPDF ? ' [PDF]' : ''}</div>
+          <div class="file-name">${file.name} (${formatFileSize(file.size)})${isPDF ? ' [PDF - will extract text]' : ''}</div>
           <div class="progress-container">
             <div class="progress-bar">
               <div class="progress" style="width: 0%"></div>
@@ -600,11 +598,9 @@
         return;
       }
       
-      // Check if API endpoint is configured
-      if (!API_ENDPOINT || API_ENDPOINT === 'PLACEHOLDER_API_URL') {
-        statusMessage.innerHTML = '<strong>Configuration Error:</strong><br>API endpoint not configured. Please check:<br>1. CloudFormation deployment completed successfully<br>2. Amplify build process ran correctly<br>3. Check Amplify build logs for sed command execution';
+      if (!API_ENDPOINT || API_ENDPOINT.includes('%%API_URL%%')) {
+        statusMessage.innerHTML = '<strong>Configuration Error:</strong><br>API endpoint not configured.';
         statusMessage.className = 'status-message error';
-        console.error('API_ENDPOINT not configured:', API_ENDPOINT);
         return;
       }
       
@@ -620,14 +616,10 @@
           contentType: f.file.type || 'application/octet-stream'
         }));
         
-        console.log('Calling API:', API_ENDPOINT);
-        console.log('Request payload:', { password: '***', files: fileInfoArray });
-        
         const response = await fetch(API_ENDPOINT, {
           method: 'POST',
           headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ 
             password: password,
@@ -635,20 +627,9 @@
           })
         });
         
-        console.log('Response status:', response.status);
-        console.log('Response headers:', [...response.headers.entries()]);
-        
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('Error response:', errorText);
           throw new Error(response.status === 401 ? 'Invalid password' : `Server error: ${response.status}`);
-        }
-        
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          const text = await response.text();
-          console.error('Non-JSON response:', text);
-          throw new Error('Server returned non-JSON response. Check API Gateway configuration.');
         }
         
         const data = await response.json();
@@ -668,40 +649,34 @@
           return uploadFileWithProgress(
             fileObj.file,
             urlData.uploadURL,
-            fileObj.id,
-            urlData.key
-          ).then(async (s3Key) => {
+            fileObj.id
+          ).then(() => {
             completedUploads++;
             updateOverallProgress(completedUploads, files.length);
-            
-            // Process PDF if applicable (Amplify version - automatic via S3 trigger)
-            if (fileObj.isPDF && s3Key) {
-              try {
-                updateFileStatus(fileObj.id, 'processing', 100);
-                await processPDF(password, s3Key, fileObj.id);
-              } catch (error) {
-                console.error('PDF processing error:', error);
-              }
-            }
           });
         });
         
         await Promise.allSettled(uploadPromises);
         
         const allSuccessful = files.every(f => f.status === 'complete');
+        const pdfCount = files.filter(f => f.isPDF && f.status === 'complete').length;
         
         if (allSuccessful) {
-          statusMessage.textContent = 'All files uploaded successfully! PDFs will be processed automatically.';
+          let message = 'All files uploaded successfully!';
+          if (pdfCount > 0) {
+            message += ` ${pdfCount} PDF(s) will be automatically processed for text extraction in the background.`;
+          }
+          statusMessage.textContent = message;
           statusMessage.className = 'status-message success';
         } else {
           const failedCount = files.filter(f => f.status === 'error').length;
-          statusMessage.textContent = `Upload completed with ${failedCount} errors. Please retry failed files.`;
+          statusMessage.textContent = `Upload completed with ${failedCount} error(s).`;
           statusMessage.className = 'status-message error';
         }
         
       } catch (error) {
         console.error('Upload error:', error);
-        statusMessage.innerHTML = '<strong>Error:</strong> ' + error.message + '<br><small>Check console for details</small>';
+        statusMessage.innerHTML = '<strong>Error:</strong> ' + error.message;
         statusMessage.className = 'status-message error';
       } finally {
         loading.style.display = 'none';
@@ -709,20 +684,7 @@
       }
     }
     
-    async function processPDF(password, s3Key, fileId) {
-      // In Amplify version, PDF processing happens automatically via S3 trigger
-      // No need to call a separate endpoint - just mark as complete
-      console.log('PDF will be processed automatically by S3 trigger:', s3Key);
-      
-      // Give a small delay to show "Processing" status
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // The actual PDF extraction happens in the background via Lambda S3 trigger
-      // Mark as complete in UI
-      updateFileStatus(fileId, 'complete', 100);
-    }
-    
-    function uploadFileWithProgress(file, presignedUrl, fileId, s3Key) {
+    function uploadFileWithProgress(file, presignedUrl, fileId) {
       return new Promise((resolve, reject) => {
         updateFileStatus(fileId, 'uploading', 0);
         
@@ -738,7 +700,7 @@
         xhr.addEventListener('load', () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             updateFileStatus(fileId, 'complete', 100);
-            resolve(s3Key);
+            resolve();
           } else {
             updateFileStatus(fileId, 'error', 0);
             reject(new Error(`Upload failed with status ${xhr.status}`));
@@ -755,8 +717,9 @@
           reject(new Error('Upload aborted'));
         });
         
+        // CRITICAL FIX: Do NOT set Content-Type header
+        // The presigned URL already includes the content type in its signature
         xhr.open('PUT', presignedUrl, true);
-        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
         xhr.send(file);
       });
     }
@@ -784,10 +747,6 @@
           case 'uploading':
             statusElement.textContent = `${Math.round(progress)}%`;
             break;
-          case 'processing':
-            statusElement.textContent = 'Processing...';
-            statusElement.classList.add('processing');
-            break;
           case 'complete':
             statusElement.textContent = 'Complete';
             statusElement.classList.add('complete');
@@ -804,8 +763,3 @@
   </script>
 </body>
 </html>
-
-
-
-
-
