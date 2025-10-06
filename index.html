@@ -9,12 +9,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: 'Inter', sans-serif;
-    }
-    .fade-in {
-      animation: fadeIn 0.5s ease-in-out;
-    }
+    body { font-family: 'Inter', sans-serif; }
+    .fade-in { animation: fadeIn 0.5s ease-in-out; }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(-10px); }
       to { opacity: 1; transform: translateY(0); }
@@ -23,7 +19,6 @@
 </head>
 <body class="bg-slate-100 flex flex-col items-center justify-center min-h-screen p-4">
 
-  <!-- Header with Logo -->
   <header class="absolute top-0 left-0 w-full p-6 pl-10">
     <img src="%%LOGO_URL%%" alt="%%COMPANY_NAME%% Logo" class="h-12 sm:h-16">
   </header>
@@ -34,13 +29,11 @@
       <p class="text-slate-500 mt-2">Upload your documents for %%COMPANY_NAME%%</p>
     </div>
     
-    <!-- Password Authentication Section -->
     <div class="mb-6">
       <label for="password" class="block mb-2 font-medium text-slate-700">Password</label>
       <input type="password" id="password" placeholder="Enter your password" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-4 focus:ring-blue-200 focus:border-blue-500 transition duration-300">
     </div>
     
-    <!-- File Upload Guidance -->
     <div class="space-y-4 mb-6">
       <div class="bg-blue-50 border border-blue-200 rounded-lg">
         <div class="collapsible-header flex justify-between items-center p-4 cursor-pointer" id="file-types-toggle">
@@ -65,7 +58,6 @@
       </div>
     </div>
     
-    <!-- Upload Area -->
     <div id="drop-area" class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer transition-all duration-300 hover:border-blue-500 hover:bg-blue-50">
       <div class="flex flex-col items-center text-slate-500">
         <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-4 text-slate-400"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"></path><line x1="16" y1="5" x2="22" y2="5"></line><line x1="19" y1="2" x2="19" y2="8"></line><path d="M10 14l-2 2 6 6"></path></svg>
@@ -75,32 +67,24 @@
       <input type="file" id="fileInput" multiple class="hidden">
     </div>
     
-    <!-- Upload Controls -->
     <div class="flex flex-col sm:flex-row gap-4 mt-6">
       <button id="uploadButton" disabled class="w-full sm:w-auto flex-grow bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-300">Upload Files</button>
       <button id="clearButton" disabled class="w-full sm:w-auto bg-red-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-red-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-300">Clear All</button>
     </div>
     
-    <!-- Status Message -->
     <div id="status-message" class="mt-6 text-center"></div>
-    
-    <!-- File List -->
     <div id="fileList" class="mt-8 space-y-3"></div>
   </main>
 
   <script>
-    // Configuration - will be replaced during build
     const API_ENDPOINT = '%%API_URL%%';
     const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.csv', '.eml', '.msg', '.jpg', '.jpeg', '.png', '.gif'];
     
-    // Check if API_ENDPOINT was replaced
     if (API_ENDPOINT === '%%API_URL%%') {
-      console.error('ERROR: API_ENDPOINT not configured! Build replacement failed.');
-      document.getElementById('status-message').innerHTML = 
-        '<div class="p-4 rounded-lg bg-red-50 text-red-700 border border-red-200">Configuration error: API endpoint not set. Please contact administrator.</div>';
+      console.error('ERROR: API_ENDPOINT not configured');
+      document.getElementById('status-message').innerHTML = '<div class="p-4 rounded-lg bg-red-50 text-red-700 border border-red-200">Configuration error: API endpoint not set. Please contact administrator.</div>';
     }
     
-    // DOM Elements
     const dropArea = document.getElementById('drop-area');
     const fileInput = document.getElementById('fileInput');
     const uploadBtn = document.getElementById('uploadButton');
@@ -110,265 +94,188 @@
     const fileTypesToggle = document.getElementById('file-types-toggle');
     const fileTypesContent = document.getElementById('file-types-content');
     const fileTypesArrow = document.getElementById('file-types-arrow');
-
-    // File storage
     let files = [];
     
-    // UI Icons
     const ICONS = {
-      uploading: `<div class="spinner border-2 border-slate-300 border-t-blue-500 rounded-full w-5 h-5 animate-spin"></div>`,
-      complete: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`,
-      error: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-red-500"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`,
-      pending: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`
+      uploading: '<div class="spinner border-2 border-slate-300 border-t-blue-500 rounded-full w-5 h-5 animate-spin"></div>',
+      complete: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-green-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
+      error: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-red-500"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+      pending: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>'
     };
     
-    // Event Listeners
     fileTypesToggle.addEventListener('click', () => {
       fileTypesContent.classList.toggle('hidden');
       fileTypesArrow.style.transform = fileTypesContent.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
     });
 
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => dropArea.addEventListener(eventName, preventDefaults, false));
-    ['dragenter', 'dragover'].forEach(eventName => dropArea.addEventListener(eventName, () => dropArea.classList.add('bg-blue-50', 'border-blue-500'), false));
-    ['dragleave', 'drop'].forEach(eventName => dropArea.addEventListener(eventName, () => dropArea.classList.remove('bg-blue-50', 'border-blue-500'), false));
-
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => dropArea.addEventListener(e, preventDefaults, false));
+    ['dragenter', 'dragover'].forEach(e => dropArea.addEventListener(e, () => dropArea.classList.add('bg-blue-50', 'border-blue-500'), false));
+    ['dragleave', 'drop'].forEach(e => dropArea.addEventListener(e, () => dropArea.classList.remove('bg-blue-50', 'border-blue-500'), false));
     dropArea.addEventListener('drop', e => addFiles([...e.dataTransfer.files]), false);
     dropArea.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', function() {
-      addFiles([...this.files]);
-      this.value = null;
-    });
-
+    fileInput.addEventListener('change', function() { addFiles([...this.files]); this.value = null; });
     uploadBtn.addEventListener('click', uploadFiles);
     clearBtn.addEventListener('click', clearFiles);
 
-    function preventDefaults(e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+    function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
     
     function checkFileType(fileName) {
-        const lowerFileName = fileName.toLowerCase();
-        if (lowerFileName.endsWith('.zip')) {
-            return { allowed: false, message: 'ZIP files are not allowed!' };
-        }
-        if (allowedExtensions.some(ext => lowerFileName.endsWith(ext))) {
-            return { allowed: true };
-        }
-        return { allowed: false, message: 'File type not allowed!' };
+      const lower = fileName.toLowerCase();
+      if (lower.endsWith('.zip')) return { allowed: false, message: 'ZIP files not allowed' };
+      if (allowedExtensions.some(ext => lower.endsWith(ext))) return { allowed: true };
+      return { allowed: false, message: 'File type not allowed' };
     }
 
     function addFiles(newFiles) {
-        const invalidFiles = newFiles.map(file => ({ file, check: checkFileType(file.name) })).filter(item => !item.check.allowed);
-        
-        if (invalidFiles.length > 0) {
-            const errorMessage = `<strong>Some files were not added:</strong><ul class="list-disc list-inside text-left mt-2">${invalidFiles.map(f => `<li>${f.file.name}: ${f.check.message}</li>`).join('')}</ul>`;
-            showStatusMessage(errorMessage, 'error');
-        } else {
-             statusMessage.innerHTML = '';
-        }
+      const invalid = newFiles.filter(f => !checkFileType(f.name).allowed);
+      if (invalid.length > 0) {
+        showStatusMessage(`<strong>Some files rejected:</strong><ul class="list-disc list-inside text-left mt-2">${invalid.map(f => `<li>${f.name}</li>`).join('')}</ul>`, 'error');
+      } else { statusMessage.innerHTML = ''; }
 
-        const validFiles = newFiles.filter(file => checkFileType(file.name).allowed);
-        if (validFiles.length === 0) return;
-        
-        validFiles.forEach(file => {
-            const fileId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-            files.push({ id: fileId, file: file, status: 'pending' });
-
-            const fileItem = document.createElement('div');
-            fileItem.className = 'file-item flex items-center p-3 bg-slate-50 rounded-lg fade-in';
-            fileItem.dataset.id = fileId;
-            fileItem.innerHTML = `
-              <div class="flex-grow flex items-center min-w-0">
-                <div class="status-icon w-8 h-8 flex-shrink-0 flex items-center justify-center mr-3">${ICONS.pending}</div>
-                <div class="min-w-0">
-                  <p class="font-medium text-slate-800 truncate">${file.name}</p>
-                  <p class="text-sm text-slate-500">${formatFileSize(file.size)}</p>
-                </div>
-              </div>
-              <button class="remove-btn ml-4 text-slate-400 hover:text-red-600 transition-colors duration-200 flex-shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-              </button>
-            `;
-            fileItem.querySelector('.remove-btn').addEventListener('click', () => removeFile(fileId));
-            fileList.appendChild(fileItem);
-        });
-
-        updateButtons();
+      newFiles.filter(f => checkFileType(f.name).allowed).forEach(file => {
+        const fileId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        files.push({ id: fileId, file: file, status: 'pending' });
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item flex items-center p-3 bg-slate-50 rounded-lg fade-in';
+        fileItem.dataset.id = fileId;
+        fileItem.innerHTML = `
+          <div class="flex-grow flex items-center min-w-0">
+            <div class="status-icon w-8 h-8 flex-shrink-0 flex items-center justify-center mr-3">${ICONS.pending}</div>
+            <div class="min-w-0">
+              <p class="font-medium text-slate-800 truncate">${file.name}</p>
+              <p class="text-sm text-slate-500">${formatFileSize(file.size)}</p>
+            </div>
+          </div>
+          <button class="remove-btn ml-4 text-slate-400 hover:text-red-600 transition-colors duration-200 flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>`;
+        fileItem.querySelector('.remove-btn').addEventListener('click', () => removeFile(fileId));
+        fileList.appendChild(fileItem);
+      });
+      updateButtons();
     }
 
     function removeFile(fileId) {
-        files = files.filter(f => f.id !== fileId);
-        const fileElement = document.querySelector(`.file-item[data-id="${fileId}"]`);
-        if (fileElement) fileElement.remove();
-        updateButtons();
+      files = files.filter(f => f.id !== fileId);
+      const el = document.querySelector(`.file-item[data-id="${fileId}"]`);
+      if (el) el.remove();
+      updateButtons();
     }
 
     function clearFiles() {
-        files = [];
-        fileList.innerHTML = '';
-        showStatusMessage('', 'clear');
-        updateButtons();
+      files = [];
+      fileList.innerHTML = '';
+      showStatusMessage('', 'clear');
+      updateButtons();
     }
 
     function updateButtons() {
-        const hasFiles = files.length > 0;
-        uploadBtn.disabled = !hasFiles;
-        clearBtn.disabled = !hasFiles;
+      const hasFiles = files.length > 0;
+      uploadBtn.disabled = !hasFiles;
+      clearBtn.disabled = !hasFiles;
     }
 
     function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024, sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
     
     function showStatusMessage(message, type) {
-        statusMessage.innerHTML = message;
-        if (type === 'success') {
-            statusMessage.className = 'mt-6 text-center p-4 rounded-lg bg-green-50 text-green-700 border border-green-200';
-        } else if (type === 'error') {
-            statusMessage.className = 'mt-6 text-center p-4 rounded-lg bg-red-50 text-red-700 border border-red-200';
-        } else if (type === 'info') {
-            statusMessage.className = 'mt-6 text-center p-4 rounded-lg bg-blue-50 text-blue-700 border border-blue-200';
-        } else {
-             statusMessage.className = 'mt-6 text-center';
-        }
+      statusMessage.innerHTML = message;
+      statusMessage.className = type === 'success' ? 'mt-6 text-center p-4 rounded-lg bg-green-50 text-green-700 border border-green-200' :
+        type === 'error' ? 'mt-6 text-center p-4 rounded-lg bg-red-50 text-red-700 border border-red-200' :
+        type === 'info' ? 'mt-6 text-center p-4 rounded-lg bg-blue-50 text-blue-700 border border-blue-200' : 'mt-6 text-center';
     }
 
     async function uploadFiles() {
-        if (files.length === 0) return;
-        const password = document.getElementById('password').value;
-        if (!password) {
-            showStatusMessage('Please enter a password before uploading.', 'error');
-            return;
+      if (files.length === 0) return;
+      const password = document.getElementById('password').value;
+      if (!password) {
+        showStatusMessage('Please enter password', 'error');
+        return;
+      }
+
+      uploadBtn.disabled = true;
+      clearBtn.disabled = true;
+      showStatusMessage('Preparing upload...', 'info');
+
+      try {
+        const fileInfoArray = files.map(f => ({ fileName: f.file.name, contentType: f.file.type || 'application/octet-stream' }));
+        console.log('Calling:', API_ENDPOINT);
+
+        const response = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: password, files: fileInfoArray })
+        });
+
+        const responseText = await response.text();
+        console.log('Response:', response.status, responseText);
+
+        if (!response.ok) {
+          let errorMsg = 'Failed to get upload URLs';
+          try {
+            const errorData = JSON.parse(responseText);
+            errorMsg = errorData.error || errorMsg;
+          } catch (e) {
+            errorMsg = responseText.includes('<!DOCTYPE') ? 'Server returned HTML - check API configuration' : responseText;
+          }
+          throw new Error(response.status === 401 ? 'Invalid password' : errorMsg);
         }
 
-        uploadBtn.disabled = true;
-        clearBtn.disabled = true;
-        showStatusMessage('Preparing files for upload...', 'info');
+        const data = JSON.parse(responseText);
+        const { presignedUrls } = data;
+        if (!presignedUrls || !Array.isArray(presignedUrls)) throw new Error('Invalid response format');
 
-        try {
-            const fileInfoArray = files.map(f => ({
-                fileName: f.file.name,
-                contentType: f.file.type || 'application/octet-stream'
-            }));
+        showStatusMessage(`Uploading ${files.length} file(s)...`, 'info');
 
-            console.log('API Endpoint:', API_ENDPOINT);
-            console.log('Request payload:', { password: '***', files: fileInfoArray });
-
-            const response = await fetch(API_ENDPOINT, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ password: password, files: fileInfoArray })
-            });
-
-            console.log('Response status:', response.status);
-            console.log('Response headers:', [...response.headers.entries()]);
-
-            const responseText = await response.text();
-            console.log('Raw response:', responseText);
-
-            if (!response.ok) {
-                let errorMessage = 'Failed to get upload URLs';
-                try {
-                    const errorData = JSON.parse(responseText);
-                    errorMessage = errorData.error || errorMessage;
-                } catch (e) {
-                    errorMessage = responseText.includes('<!DOCTYPE') 
-                        ? 'Server returned HTML instead of JSON. Check API endpoint configuration.' 
-                        : responseText;
-                }
-                throw new Error(response.status === 401 ? 'Invalid password' : errorMessage);
-            }
-
-            let data;
-            try {
-                data = JSON.parse(responseText);
-            } catch (e) {
-                console.error('Failed to parse JSON:', responseText);
-                throw new Error('Server returned invalid JSON: ' + responseText.substring(0, 100));
-            }
-
-            const { presignedUrls } = data;
-            if (!presignedUrls || !Array.isArray(presignedUrls)) {
-                throw new Error('Invalid response format: missing presignedUrls array');
-            }
-
-            showStatusMessage(`Uploading ${files.length} file(s)...`, 'info');
-
-            const uploadPromises = files.map((fileObj, index) => {
-                const urlData = presignedUrls[index];
-                if (!urlData) return Promise.reject(new Error(`No presigned URL for ${fileObj.file.name}`));
-                return uploadSingleFile(fileObj.file, urlData.uploadURL, fileObj.id);
-            });
-            
-            await Promise.allSettled(uploadPromises);
-
-            const failedCount = files.filter(f => f.status === 'error').length;
-            if (failedCount > 0) {
-                 showStatusMessage(`Upload complete. ${failedCount} file(s) failed to upload.`, 'error');
-            } else {
-                 showStatusMessage('All files uploaded successfully!', 'success');
-            }
-
-        } catch (error) {
-            console.error('Upload error:', error);
-            showStatusMessage(`An error occurred: ${error.message}`, 'error');
-        } finally {
-            updateButtons();
-        }
+        const uploadPromises = files.map((fileObj, index) => {
+          const urlData = presignedUrls[index];
+          if (!urlData) return Promise.reject(new Error(`No URL for ${fileObj.file.name}`));
+          return uploadSingleFile(fileObj.file, urlData.uploadURL, fileObj.id);
+        });
+        
+        await Promise.allSettled(uploadPromises);
+        const failed = files.filter(f => f.status === 'error').length;
+        showStatusMessage(failed > 0 ? `Upload complete. ${failed} failed.` : 'All files uploaded successfully!', failed > 0 ? 'error' : 'success');
+      } catch (error) {
+        console.error('Upload error:', error);
+        showStatusMessage(`Error: ${error.message}`, 'error');
+      } finally {
+        updateButtons();
+      }
     }
 
     function uploadSingleFile(file, presignedUrl, fileId) {
-        return new Promise((resolve, reject) => {
-            updateFileStatus(fileId, 'uploading');
-            const xhr = new XMLHttpRequest();
-            
-            xhr.addEventListener('load', () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    updateFileStatus(fileId, 'complete');
-                    resolve();
-                } else {
-                    console.error('Upload failed:', xhr.status, xhr.responseText);
-                    updateFileStatus(fileId, 'error');
-                    reject(new Error(`Upload failed with status ${xhr.status}`));
-                }
-            });
-
-            xhr.addEventListener('error', () => {
-                console.error('Network error during upload');
-                updateFileStatus(fileId, 'error');
-                reject(new Error('Network error during upload'));
-            });
-            
-            xhr.addEventListener('abort', () => {
-                updateFileStatus(fileId, 'error');
-                reject(new Error('Upload aborted'));
-            });
-
-            xhr.open('PUT', presignedUrl, true);
-            xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-            xhr.send(file);
+      return new Promise((resolve, reject) => {
+        updateFileStatus(fileId, 'uploading');
+        const xhr = new XMLHttpRequest();
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            updateFileStatus(fileId, 'complete');
+            resolve();
+          } else {
+            updateFileStatus(fileId, 'error');
+            reject(new Error(`Upload failed: ${xhr.status}`));
+          }
         });
+        xhr.addEventListener('error', () => { updateFileStatus(fileId, 'error'); reject(new Error('Network error')); });
+        xhr.addEventListener('abort', () => { updateFileStatus(fileId, 'error'); reject(new Error('Upload aborted')); });
+        xhr.open('PUT', presignedUrl, true);
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+        xhr.send(file);
+      });
     }
 
     function updateFileStatus(fileId, status) {
-        const fileElement = document.querySelector(`.file-item[data-id="${fileId}"]`);
-        if (!fileElement) return;
-        
-        const fileObj = files.find(f => f.id === fileId);
-        if (fileObj) fileObj.status = status;
-        
-        const statusIcon = fileElement.querySelector('.status-icon');
-        if (statusIcon) {
-            statusIcon.innerHTML = ICONS[status] || ICONS.pending;
-        }
+      const el = document.querySelector(`.file-item[data-id="${fileId}"]`);
+      if (!el) return;
+      const fileObj = files.find(f => f.id === fileId);
+      if (fileObj) fileObj.status = status;
+      const icon = el.querySelector('.status-icon');
+      if (icon) icon.innerHTML = ICONS[status] || ICONS.pending;
     }
   </script>
 </body>
