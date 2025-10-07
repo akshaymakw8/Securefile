@@ -212,11 +212,6 @@
       color: var(--error-color);
     }
     
-    .file-list-header {
-      font-weight: 500;
-      margin-bottom: 0.5rem;
-    }
-    
     button {
       background-color: var(--primary-color);
       color: white;
@@ -387,8 +382,10 @@
   </div>
 
   <script>
-    const API_ENDPOINT = '/generate-bulk-upload-urls';
-    const PROCESS_ENDPOINT = '/process-file';
+    // This will be replaced by Amplify build process
+    const API_ENDPOINT = '%%API_URL%%';
+    
+    console.log('API Endpoint:', API_ENDPOINT);
     
     const allowedExtensions = [
       '.pdf', '.doc', '.docx', '.txt',
@@ -478,7 +475,7 @@
         }
       }
       
-      return { allowed: false, message: 'File type not allowed! Please upload only supported file types.' };
+      return { allowed: false, message: 'File type not allowed!' };
     }
     
     function isProcessable(fileName) {
@@ -563,7 +560,6 @@
       if (fileElement) {
         fileElement.remove();
       }
-      
       updateButtons();
     }
     
@@ -571,7 +567,6 @@
       files = [];
       fileList.innerHTML = '';
       updateButtons();
-      
       overallProgressBar.style.width = '0%';
       overallProgressText.textContent = '0%';
       statusMessage.textContent = '';
@@ -585,11 +580,9 @@
     
     function formatFileSize(bytes) {
       if (bytes === 0) return '0 Bytes';
-      
       const k = 1024;
       const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
       const i = Math.floor(Math.log(bytes) / Math.log(k));
-      
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
     
@@ -612,56 +605,47 @@
       
       uploadBtn.disabled = true;
       clearBtn.disabled = true;
-      
       loading.style.display = 'block';
-      statusMessage.textContent = 'Preparing files for upload...';
+      statusMessage.textContent = 'Uploading files...';
       statusMessage.className = 'status-message';
       
       try {
-        const fileInfoArray = files.map(f => ({
-          fileName: f.file.name,
-          contentType: f.file.type || 'application/octet-stream'
-        }));
-        
-        const response = await fetch(API_ENDPOINT, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ 
-            password: password,
-            files: fileInfoArray 
-          })
-        });
-        
-        if (!response.ok) {
-          throw new Error(response.status === 401 ? 'Invalid password' : 'Failed to get upload URLs');
-        }
-        
-        const data = await response.json();
-        const { presignedUrls } = data;
-        
         let completedUploads = 0;
         
-        statusMessage.textContent = 'Uploading files...';
-        
-        const uploadPromises = files.map((fileObj, index) => {
-          const urlData = presignedUrls[index];
-          if (!urlData) return Promise.reject(new Error('No presigned URL for file'));
-          
-          return uploadFileWithProgress(
-            fileObj.file,
-            urlData.uploadURL,
-            fileObj.id,
-            urlData.key,
-            password
-          ).then(() => {
+        // Upload files one by one
+        for (const fileObj of files) {
+          try {
+            // Call Lambda to get presigned URL
+            const response = await fetch(API_ENDPOINT, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                password: password,
+                fileName: fileObj.file.name,
+                contentType: fileObj.file.type || 'application/octet-stream'
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error(response.status === 401 ? 'Invalid password' : 'Failed to get upload URL');
+            }
+            
+            const data = await response.json();
+            const { uploadURL, key } = data;
+            
+            // Upload to S3
+            await uploadFileWithProgress(fileObj.file, uploadURL, fileObj.id, key, password);
+            
             completedUploads++;
             updateOverallProgress(completedUploads, files.length);
-          });
-        });
-        
-        await Promise.allSettled(uploadPromises);
+            
+          } catch (error) {
+            console.error('Error uploading file:', fileObj.file.name, error);
+            updateFileStatus(fileObj.id, 'error', 0);
+          }
+        }
         
         const allSuccessful = files.every(f => f.status === 'complete' || f.status === 'processed');
         
@@ -670,7 +654,7 @@
           statusMessage.className = 'status-message success';
         } else {
           const failedCount = files.filter(f => f.status === 'error').length;
-          statusMessage.textContent = `Upload completed with ${failedCount} errors. Please retry failed files.`;
+          statusMessage.textContent = `Upload completed with ${failedCount} errors.`;
           statusMessage.className = 'status-message error';
         }
         
@@ -715,12 +699,7 @@
         
         xhr.addEventListener('error', () => {
           updateFileStatus(fileId, 'error', 0);
-          reject(new Error('Network error occurred during upload'));
-        });
-        
-        xhr.addEventListener('abort', () => {
-          updateFileStatus(fileId, 'error', 0);
-          reject(new Error('Upload aborted'));
+          reject(new Error('Network error'));
         });
         
         xhr.open('PUT', presignedUrl, true);
@@ -733,23 +712,21 @@
       try {
         updateFileStatus(fileId, 'processing', 100);
         
-        const response = await fetch(PROCESS_ENDPOINT, {
+        const response = await fetch(API_ENDPOINT, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             password: password,
-            s3_key: s3Key
+            s3_key: s3Key,
+            action: 'process'
           })
         });
         
         if (response.ok) {
-          const result = await response.json();
-          console.log('Processing result:', result);
           updateFileStatus(fileId, 'processed', 100);
         } else {
-          console.error('Processing failed');
           updateFileStatus(fileId, 'complete', 100);
         }
       } catch (error) {
